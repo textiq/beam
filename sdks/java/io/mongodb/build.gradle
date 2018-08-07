@@ -27,7 +27,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
   shadow library.java.joda_time
-  shadow "org.mongodb:mongo-java-driver:3.2.2"
+  shadow "org.mongodb:mongo-java-driver:3.2.2-textiq"
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
