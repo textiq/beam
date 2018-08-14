@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.bson.BsonType;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,8 @@ public class MongoDbIO {
         .setKeepAlive(true)
         .setMaxConnectionIdleTime(60000)
         .setNumSplits(0)
+        .setLimit(-1)
+        .setIdType(BsonType.OBJECT_ID)
         .build();
   }
 
@@ -131,7 +134,9 @@ public class MongoDbIO {
     @Nullable abstract String collection();
     @Nullable abstract String filter();
     abstract int numSplits();
-
+    @Nullable
+    abstract BsonType idType();
+    abstract int limit();
     abstract Builder builder();
 
     @AutoValue.Builder
@@ -143,6 +148,8 @@ public class MongoDbIO {
       abstract Builder setCollection(String collection);
       abstract Builder setFilter(String filter);
       abstract Builder setNumSplits(int numSplits);
+      abstract Builder setIdType(BsonType type);
+      abstract Builder setLimit(int limit);
       abstract Read build();
     }
 
@@ -232,11 +239,23 @@ public class MongoDbIO {
       return builder().setNumSplits(numSplits).build();
     }
 
+    public Read withIdType(BsonType type) {
+      checkArgument(type != null, "type can not be null");
+      return builder().setIdType(type).build();
+    }
+
+    public Read withLimit(int limit) {
+      checkArgument(limit > 0, "invalid limit: must be > 0, but was %d", limit);
+      return builder().setLimit(limit).build();
+    }
+
+
     @Override
     public PCollection<Document> expand(PBegin input) {
       checkArgument(uri() != null, "withUri() is required");
       checkArgument(database() != null, "withDatabase() is required");
       checkArgument(collection() != null, "withCollection() is required");
+      checkArgument(idType() != null, "withIdType() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
@@ -302,7 +321,7 @@ public class MongoDbIO {
 
     @Override
     public List<BoundedSource<Document>> split(long desiredBundleSizeBytes,
-                                                PipelineOptions options) {
+                                               PipelineOptions options) {
       try (MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()))) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
@@ -311,7 +330,7 @@ public class MongoDbIO {
           // the user defines his desired number of splits
           // calculate the batch size
           long estimatedSizeBytes = getEstimatedSizeBytes(mongoClient,
-              spec.database(), spec.collection());
+                  spec.database(), spec.collection());
           desiredBundleSizeBytes = estimatedSizeBytes / spec.numSplits();
         }
 
@@ -339,9 +358,25 @@ public class MongoDbIO {
           return sources;
         }
 
-        LOG.debug("Number of splits is {}", splitKeys.size());
-        for (String shardFilter : splitKeysToFilters(splitKeys, spec.filter())) {
-          sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)));
+        int numSplits = splitKeys.size();
+        List<String> shardFilters = splitKeysToFilters(splitKeys, spec.filter(), spec.idType());
+
+        int limitPerReader = -1;
+        if (spec.limit() > 0) {
+          // n split points results in n+1 readers
+          limitPerReader = (spec.limit() + numSplits) / (numSplits + 1);
+        }
+
+        LOG.debug("Number of splits is {}; limit per reader: {}; max results: {}",
+                numSplits, limitPerReader, (numSplits + 1) * limitPerReader);
+
+        for (String shardFilter: shardFilters) {
+          if (limitPerReader > 0) {
+            sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)
+                    .withLimit(limitPerReader)));
+          } else {
+            sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)));
+          }
         }
 
         return sources;
@@ -374,7 +409,28 @@ public class MongoDbIO {
      */
     @VisibleForTesting
     static List<String> splitKeysToFilters(List<Document> splitKeys, String
-        additionalFilter) {
+            additionalFilter) {
+      return splitKeysToFilters(splitKeys, additionalFilter, BsonType.OBJECT_ID);
+    }
+
+    private static String getFilterString(BsonType type, String value) {
+      switch(type) {
+        case STRING:
+          return "\"" + value + "\"";
+        case OBJECT_ID:
+          return "ObjectId(\"" + value + "\")";
+        case DOUBLE:
+        case INT32:
+        case INT64:
+          return value;
+        default:
+          throw new IllegalArgumentException("Unsupported bson type");
+      }
+    }
+
+    @VisibleForTesting
+    static List<String> splitKeysToFilters(List<Document> splitKeys, String
+        additionalFilter, BsonType idType) {
       ArrayList<String> filters = new ArrayList<>();
       String lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
@@ -383,23 +439,23 @@ public class MongoDbIO {
         if (i == 0) {
           // this is the first split in the list, the filter defines
           // the range from the beginning up to this split
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}",
-              splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:%s}}",
+              getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
           // the current split to the end
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
-              + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s, $lte:%s}}",
+                  getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}",
-              splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
+              getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
         } else {
           // we are between two splits
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
-              + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s, $lte:%s}}",
+                  getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
         }
 
@@ -418,7 +474,7 @@ public class MongoDbIO {
     private static String formatFilter(String filter, @Nullable String additionalFilter) {
       if (additionalFilter != null && !additionalFilter.isEmpty()) {
         // user provided a filter, we append the user filter to the range filter
-        return String.format("%s,%s ]}", filter, additionalFilter);
+        return  String.format("%s,%s ]}", filter, additionalFilter);
       } else {
         // user didn't provide a filter, just cleanly close the range filter
         return String.format("%s ]}", filter);
@@ -432,6 +488,9 @@ public class MongoDbIO {
     private MongoClient client;
     private MongoCursor<Document> cursor;
     private Document current;
+    private int count;
+    private int limit;
+    private String filter;
 
     public BoundedMongoDbReader(BoundedMongoDbSource source) {
       this.source = source;
@@ -440,6 +499,8 @@ public class MongoDbIO {
     @Override
     public boolean start() {
       Read spec = source.spec;
+      count = spec.limit();
+      limit = spec.limit();
       MongoClientOptions.Builder optionsBuilder = new MongoClientOptions.Builder();
       optionsBuilder.maxConnectionIdleTime(spec.maxConnectionIdleTime());
       optionsBuilder.socketKeepAlive(spec.keepAlive());
@@ -448,12 +509,13 @@ public class MongoDbIO {
       MongoDatabase mongoDatabase = client.getDatabase(spec.database());
 
       MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
+      filter = spec.filter();
 
       if (spec.filter() == null) {
-        cursor = mongoCollection.find().iterator();
+          cursor = mongoCollection.find().iterator();
       } else {
         Document bson = Document.parse(spec.filter());
-        cursor = mongoCollection.find(bson).iterator();
+          cursor = mongoCollection.find(bson).iterator();
       }
 
       return advance();
@@ -461,10 +523,13 @@ public class MongoDbIO {
 
     @Override
     public boolean advance() {
-      if (cursor.hasNext()) {
+      if (cursor.hasNext() && (--count != 0)) {
         current = cursor.next();
         return true;
       } else {
+        LOG.debug("{} produced {} elements {}",
+                filter, limit - count,
+                cursor.hasNext() ? "[more available]" : "[depleted]");
         return false;
       }
     }
