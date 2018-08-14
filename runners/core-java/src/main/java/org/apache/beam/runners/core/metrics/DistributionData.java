@@ -59,4 +59,10 @@ public abstract class DistributionData implements Serializable {
   public DistributionResult extractResult() {
     return DistributionResult.create(sum(), count(), min(), max());
   }
+
+  public String toString() {
+    return "[" + min() + ", "
+           + String.format("%.2f", (count() > 0 ? ((double) sum()) / ((double) count()) : 0.0))
+           + ", " + max() + "]";
+  }
 }
