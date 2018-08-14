@@ -457,9 +457,6 @@ public class MetricsContainerStepMap implements Serializable {
 
   }
 
-  public static final String EMPTY = "";
-  private static final int STRING_BUILDER_SIZE = 256;
-
   public String toString() {
     return "[<br/> " + StringUtils.join(metricsContainers
                                 .entrySet()
