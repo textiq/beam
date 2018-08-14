@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.mongodb;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
+import com.google.common.collect.Lists;
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -45,7 +46,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -123,11 +126,14 @@ public class MongoDbIOTest implements Serializable {
 
     String[] scientists = {"Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday",
         "Newton", "Bohr", "Galilei", "Maxwell"};
+    String[] firstNames = {"Albert", "Charles", "Nicolaus", "Louis", "Marie", "Michael",
+         "Isaac", "Niels", "Galileo", "James"};
     for (int i = 1; i <= 1000; i++) {
       int index = i % scientists.length;
       Document document = new Document();
       document.append("_id", i);
       document.append("scientist", scientists[index]);
+      document.append("firstName", firstNames[index]);
       collection.insertOne(document);
     }
 
@@ -174,7 +180,9 @@ public class MongoDbIOTest implements Serializable {
                     MapElements.via(
                         new SimpleFunction<Document, KV<String, Void>>() {
                           public KV<String, Void> apply(Document input) {
-                            return KV.of(input.getString("scientist"), null);
+                            String fullName = input.getString("scientist") + ", "
+                                + input.getString("firstName");
+                            return KV.of(fullName, null);
                           }
                         }))
                 .apply("Count Scientist", Count.perKey()))
@@ -185,6 +193,58 @@ public class MongoDbIOTest implements Serializable {
               }
               return null;
             });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testFullWithProjection() throws Exception {
+
+    PCollection<Document> output = pipeline.apply(
+        MongoDbIO.read()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE)
+            .withCollection(COLLECTION)
+            .withProjection(Lists.newArrayList("firstName")));
+
+    PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
+
+    PAssert.that(
+        output
+            .apply("Filter docs with scientist",
+                Filter.by((SerializableFunction<Document, Boolean>)
+                    input -> input.getString("scientist") != null))
+            .apply("Count", Count.globally()))
+        .satisfies(
+            input -> {
+              for (Long element : input) {
+                assertEquals(Long.valueOf(0), element);
+              }
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testFullWithLimit() throws Exception {
+    final int limit = 100;
+
+    PCollection<Document> output = pipeline.apply(
+        MongoDbIO.read()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE)
+            .withCollection(COLLECTION)
+            .withLimit(limit));
+
+    // the exact number of records produced depends on how the query is split and how
+    // many elements are present in each split. Let's be on the safe side and only
+    // require that no more than twice the number of requested elements are produced
+    PAssert.thatSingleton(output.apply("Count All", Count.globally()))
+        .satisfies((SerializableFunction<Long, Void>) input -> {
+          assert input < 2 * limit;
+          return null;
+        });
 
     pipeline.run();
   }

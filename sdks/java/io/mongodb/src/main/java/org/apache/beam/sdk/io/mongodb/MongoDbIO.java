@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
@@ -107,6 +108,7 @@ public class MongoDbIO {
         .setNumSplits(0)
         .setLimit(-1)
         .setIdType(BsonType.OBJECT_ID)
+        .setProjection(Lists.newArrayList())
         .build();
   }
 
@@ -138,6 +140,7 @@ public class MongoDbIO {
     abstract BsonType idType();
     abstract int limit();
     abstract Builder builder();
+    abstract List<String> projection();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -150,6 +153,7 @@ public class MongoDbIO {
       abstract Builder setNumSplits(int numSplits);
       abstract Builder setIdType(BsonType type);
       abstract Builder setLimit(int limit);
+      abstract Builder setProjection(List<String> projection);
       abstract Read build();
     }
 
@@ -249,6 +253,10 @@ public class MongoDbIO {
       return builder().setLimit(limit).build();
     }
 
+    public Read withProjection(List<String> projection) {
+      checkArgument(projection != null, "projection cannot be null");
+      return builder().setProjection(projection).build();
+    }
 
     @Override
     public PCollection<Document> expand(PBegin input) {
@@ -256,6 +264,7 @@ public class MongoDbIO {
       checkArgument(database() != null, "withDatabase() is required");
       checkArgument(collection() != null, "withCollection() is required");
       checkArgument(idType() != null, "withIdType() is required");
+      checkArgument(projection() != null, "projection() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
@@ -446,7 +455,7 @@ public class MongoDbIO {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
           // the current split to the end
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s, $lte:%s}}",
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s,$lte:%s}}",
                   getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
           rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
@@ -454,7 +463,7 @@ public class MongoDbIO {
           filters.add(formatFilter(rangeFilter, additionalFilter));
         } else {
           // we are between two splits
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s, $lte:%s}}",
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s,$lte:%s}}",
                   getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
         }
@@ -512,13 +521,44 @@ public class MongoDbIO {
       filter = spec.filter();
 
       if (spec.filter() == null) {
+        if (!(spec.projection().isEmpty())) {
+          Document projection = buildProjection(spec.projection());
+          cursor = mongoCollection
+              .find()
+              .projection(projection)
+              .iterator();
+        } else {
           cursor = mongoCollection.find().iterator();
+        }
       } else {
         Document bson = Document.parse(spec.filter());
+        if (!(spec.projection().isEmpty())) {
+          Document projection = buildProjection(spec.projection());
+          cursor = mongoCollection
+              .find(bson)
+              .projection(projection)
+              .iterator();
+        } else {
           cursor = mongoCollection.find(bson).iterator();
+        }
       }
 
       return advance();
+    }
+
+    Document buildProjection(List<String> projectionFields) {
+      StringBuilder sb = new StringBuilder();
+      sb.append("{ ");
+      boolean comma = false;
+      for (String field: projectionFields) {
+        if (comma) {
+          sb.append(",");
+        }
+        sb.append(field + ": 1");
+        comma = true;
+      }
+      sb.append(" }");
+      return Document.parse(sb.toString());
     }
 
     @Override
