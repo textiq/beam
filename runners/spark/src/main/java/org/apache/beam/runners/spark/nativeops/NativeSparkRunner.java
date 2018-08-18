@@ -39,20 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation executable by
- * Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam pipeline
- * with the default options of a single threaded spark instance in local mode, we would do the
- * following:
- *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
- * (SparkPipelineResult) p.run(); }
- *
- * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
- * we would do the following:
- *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineOptions options =
- * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
+ * The NativeSparkRunner.
  */
 public final class NativeSparkRunner extends AbsSparkRunner<NativeSparkPipelineResult>
     implements INativeSparkRunner  {
@@ -93,19 +80,27 @@ public final class NativeSparkRunner extends AbsSparkRunner<NativeSparkPipelineR
         return new NativeSparkRunner(sparkOptions);
     }
 
+    /**
+     * The run method for a regular pipeline as specified by the Runner interface.
+     * Should not be used for native spark pipelines.
+     *
+     * @param pipeline the pipeline to run
+     * @return nothing
+     * @throws RuntimeException always
+     */
     @Override
     public NativeSparkPipelineResult run(Pipeline pipeline) {
         throw new RuntimeException("Use run(NativeSparkPipeline, NativeSpark) instead.");
     }
 
-    /**
-     * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
-     * thread.
-     */
     protected NativeSparkRunner(SparkPipelineOptions options) {
         super(options);
     }
 
+    /**
+     * The Run method for native spark pipeline. This should be used instead of
+     * run(pipeline).
+     */
     @Override
     public NativeSparkPipelineResult run(final NativeSparkPipeline pipeline,
                                          NativeSpark nativeSparkCode) {

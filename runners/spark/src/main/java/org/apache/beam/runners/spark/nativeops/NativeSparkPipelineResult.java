@@ -19,6 +19,13 @@ public class NativeSparkPipelineResult extends SparkPipelineResult.BatchMode {
         this.outputData = outputs;
     }
 
+    /**
+     * Returns a (named) value produced by the NativeSpark code.
+     * @param variable the name of the variable
+     * @param <T> the expected type
+     * @return the value
+     * @throws IllegalArgumentException when the key does not exist
+     */
     public <T> T getValue(String variable) {
         T val = (T) outputData.get(variable);
         if (val == null) {

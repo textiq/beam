@@ -58,6 +58,12 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
 
     }
 
+    /**
+     * Store the given value for the given key.
+     *
+     * @param key the name to store this object under
+     * @param object the object to store
+     */
     @Override
     public void output(String key, Object object) {
         if (outputData.containsKey(key)) {
@@ -67,7 +73,11 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
         outputData.put(key, object);
     }
 
-    public Map<String, Object> getOutputs() {
+    /**
+     * Get all the outputs produced
+     * @return the map of key-value pairs produced by the NativeSpark code.
+     */
+     Map<String, Object> getOutputs() {
         return outputData;
     }
 }

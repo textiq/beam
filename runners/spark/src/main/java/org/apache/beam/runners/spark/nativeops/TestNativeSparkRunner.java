@@ -39,25 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation executable
- * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam
- * pipeline with the default options of a single threaded spark instance in local mode, we would do
- * the following:
- *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
- *
- * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
- * we would do the following:
- *
- * {@code
- * Pipeline p = [logic for pipeline creation]
- * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
- * options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run();
- * }
+ * Wraps an instance of NativeSpark with some utilities for testing
  */
 public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipelineResult>
     implements INativeSparkRunner {
