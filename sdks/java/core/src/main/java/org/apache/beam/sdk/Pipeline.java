@@ -626,6 +626,9 @@ public class Pipeline {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
   }
 
+  /**
+   * Validation visitor.
+   */
   protected static class ValidateVisitor extends PipelineVisitor.Defaults {
 
     private final PipelineOptions options;
@@ -648,6 +651,9 @@ public class Pipeline {
     }
   }
 
+  /**
+   * Helper class for error messages.
+   */
   protected static class TransformToMessage implements Function<PTransform<?, ?>, String> {
     @Override
     public String apply(final PTransform<?, ?> transform) {
@@ -655,6 +661,9 @@ public class Pipeline {
     }
   }
 
+  /**
+   * Helper class for Unstable names.
+   */
   protected static class UnstableNameToMessage implements
           Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
     private final Multimap<String, PTransform<?, ?>> instances;
@@ -671,6 +680,9 @@ public class Pipeline {
     }
   }
 
+  /**
+   * Key extractor.
+   */
   protected static class KeysExtractor implements
           Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
     @Override
@@ -679,6 +691,11 @@ public class Pipeline {
     }
   }
 
+  /**
+   * Predicate for uniqueness.
+   * @param <K> key type
+   * @param <V> value type
+   */
   protected static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
     @Override
     public boolean apply(final Map.Entry<K, Collection<V>> input) {
