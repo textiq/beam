@@ -501,7 +501,7 @@ public class Pipeline {
   @Nullable private CoderRegistry coderRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
-  private final PipelineOptions defaultOptions;
+  protected final PipelineOptions defaultOptions;
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
@@ -571,7 +571,7 @@ public class Pipeline {
   }
 
   @VisibleForTesting
-  void validate(PipelineOptions options) {
+  protected void validate(PipelineOptions options) {
     this.traverseTopologically(new ValidateVisitor(options));
     final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
         Collections2.filter(instancePerName.asMap().entrySet(), Predicates.not(new IsUnique<>()));
@@ -626,7 +626,7 @@ public class Pipeline {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
   }
 
-  private static class ValidateVisitor extends PipelineVisitor.Defaults {
+  protected static class ValidateVisitor extends PipelineVisitor.Defaults {
 
     private final PipelineOptions options;
 
@@ -648,14 +648,14 @@ public class Pipeline {
     }
   }
 
-  private static class TransformToMessage implements Function<PTransform<?, ?>, String> {
+  protected static class TransformToMessage implements Function<PTransform<?, ?>, String> {
     @Override
     public String apply(final PTransform<?, ?> transform) {
       return "    - " + transform;
     }
   }
 
-  private static class UnstableNameToMessage implements
+  protected static class UnstableNameToMessage implements
           Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
     private final Multimap<String, PTransform<?, ?>> instances;
 
@@ -671,7 +671,7 @@ public class Pipeline {
     }
   }
 
-  private static class KeysExtractor implements
+  protected static class KeysExtractor implements
           Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
     @Override
     public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
@@ -679,7 +679,7 @@ public class Pipeline {
     }
   }
 
-  private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
+  protected static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
     @Override
     public boolean apply(final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;

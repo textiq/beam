@@ -165,7 +165,7 @@ public class EvaluationContext {
     leaves.add(dataset);
   }
 
-  <T> void putBoundedDatasetFromValues(
+  <T> JavaRDD<WindowedValue<T>> putBoundedDatasetFromValues(
       PTransform<?, ? extends PValue> transform, Iterable<T> values, Coder<T> coder) {
     PValue output = getOutput(transform);
     if (shouldCache(output)) {
@@ -178,9 +178,13 @@ public class EvaluationContext {
           getSparkContext().parallelize(CoderHelpers.toByteArrays(elems, windowCoder))
           .map(CoderHelpers.fromByteFunction(windowCoder));
       putDataset(transform, new BoundedDataset<>(rdd));
+      return rdd;
     } else {
       // create a BoundedDataset that would create a RDD on demand
-      datasets.put(getOutput(transform), new BoundedDataset<>(values, jsc, coder));
+      BoundedDataset<T> boundedDataSet =
+          new BoundedDataset<T>(values, jsc, coder);
+      datasets.put(getOutput(transform), boundedDataSet);
+      return boundedDataSet.getRDD();
     }
   }
 
@@ -203,6 +207,7 @@ public class EvaluationContext {
       dataset.action(); // force computation.
     }
   }
+
 
   /**
    * Retrieve an object of Type T associated with the PValue passed in.

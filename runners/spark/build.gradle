@@ -83,6 +83,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  testCompile group: 'org.apache.spark', name: 'spark-mllib_2.11', version: '2.2.1'
 }
 
 configurations.testRuntimeClasspath {

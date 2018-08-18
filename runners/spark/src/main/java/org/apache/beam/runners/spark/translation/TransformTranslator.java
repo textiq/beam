@@ -28,6 +28,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -102,6 +103,7 @@ public final class TransformTranslator {
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
+        pValueToRddMap.put(context.getOutput(transform), unionRDD);
         context.putDataset(transform, new BoundedDataset<>(unionRDD));
       }
 
@@ -148,6 +150,7 @@ public final class TransformTranslator {
                     context.getSerializableOptions(),
                     accum));
 
+        pValueToRddMap.put(context.getOutput(transform), groupedAlsoByWindow);
         context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
       }
 
@@ -187,6 +190,8 @@ public final class TransformTranslator {
                         in.getTimestamp(),
                         in.getWindows(),
                         in.getPane()));
+
+        pValueToRddMap.put(context.getOutput(transform), outRDD);
         context.putDataset(transform, new BoundedDataset<>(outRDD));
       }
 
@@ -262,6 +267,7 @@ public final class TransformTranslator {
           }
         }
 
+        pValueToRddMap.put(context.getOutput(transform), outRdd);
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
 
@@ -321,6 +327,7 @@ public final class TransformTranslator {
                 .map(TranslationUtils.fromPairFunction())
                 .map(TranslationUtils.toKVByWindowInValue());
 
+        pValueToRddMap.put(context.getOutput(transform), outRdd);
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
 
@@ -398,6 +405,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
+          pValueToRddMap.put(output.getValue(), values);
           context.putDataset(output.getValue(), new BoundedDataset<>(values), false);
         }
       }
@@ -422,7 +430,7 @@ public final class TransformTranslator {
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
         GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
 
-    return groupRDD
+    JavaPairRDD<TupleTag<?>, WindowedValue<?>> output = groupRDD
         .map(
             input -> {
               final K key = input.getValue().getKey();
@@ -434,6 +442,8 @@ public final class TransformTranslator {
                   .iterator();
             })
         .flatMapToPair(doFnFunction);
+
+    return output;
   }
 
   private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {
@@ -448,6 +458,7 @@ public final class TransformTranslator {
                     jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
                 .toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
+        pValueToRddMap.put(context.getOutput(transform), input);
         context.putDataset(transform, new BoundedDataset<>(input), true);
       }
 
@@ -489,7 +500,10 @@ public final class TransformTranslator {
         // Use a coder to convert the objects in the PCollection to byte arrays, so they
         // can be transferred over the network.
         Coder<T> coder = context.getOutput(transform).getCoder();
+
         context.putBoundedDatasetFromValues(transform, elems, coder);
+        JavaRDD rdd = context.putBoundedDatasetFromValues(transform, elems, coder);
+        pValueToRddMap.put(context.getOutput(transform), rdd);
       }
 
       @Override
@@ -548,6 +562,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
             GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
 
+        pValueToRddMap.put(context.getOutput(transform), reshuffled);
         context.putDataset(transform, new BoundedDataset<>(reshuffled));
       }
 
@@ -560,6 +575,11 @@ public final class TransformTranslator {
 
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
+  private static final Map<PValue, JavaRDD<?>> pValueToRddMap = new HashMap<>();
+
+  public static Map<PValue, JavaRDD<?>> getPValueToRddMap() {
+    return pValueToRddMap;
+  }
 
   static {
     EVALUATORS.put(Read.Bounded.class, readBounded());
@@ -581,7 +601,6 @@ public final class TransformTranslator {
    * Translator matches Beam transformation with the appropriate evaluator.
    */
   public static class Translator implements SparkPipelineTranslator {
-
     @Override
     public boolean hasTranslation(Class<? extends PTransform<?, ?>> clazz) {
       return EVALUATORS.containsKey(clazz);
