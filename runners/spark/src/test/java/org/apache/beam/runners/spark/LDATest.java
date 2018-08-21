@@ -28,7 +28,6 @@ import org.apache.beam.runners.spark.nativeops.NativeSparkPipelineResult;
 import org.apache.beam.runners.spark.nativeops.TestNativeSparkRunner;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -90,8 +89,7 @@ public class LDATest implements Serializable {
                            return Vectors.dense(values);
                        }
                    })
-            );
-        data.apply(Count.globally());
+            ).setName("inputData");
 
         // (2) instruct spark to take the results of the beam pipeline,
         //     and run LDA on it
@@ -100,7 +98,7 @@ public class LDATest implements Serializable {
                 @Override
                 public void expand(INativeSparkContext ctx) {
                     // Get the RDD that was created for the given PCollection
-                    JavaRDD<Vector> parsedDataInSpark = ctx.get(parsedDataPCollection);
+                    JavaRDD<Vector> parsedDataInSpark = ctx.get("inputData");
 
                     // Do a spark transformation
                     JavaPairRDD<Long, Vector> corpus =

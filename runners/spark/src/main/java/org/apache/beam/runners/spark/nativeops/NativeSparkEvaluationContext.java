@@ -6,8 +6,6 @@ import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
@@ -16,7 +14,7 @@ import org.apache.spark.api.java.JavaSparkContext;
  */
 public class NativeSparkEvaluationContext extends EvaluationContext implements INativeSparkContext {
     private final Map<String, Object> outputData = new HashMap<String, Object>();
-    private Map<PValue, JavaRDD<?>> pValueToRddMap;
+    private Map<String, JavaRDD<?>> pValueToRddMap;
 
     public NativeSparkEvaluationContext(JavaSparkContext jsc,
                                         Pipeline pipeline,
@@ -33,7 +31,7 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
      * @param nativeSparkCode the spark code to execute
      */
     public void computeOutputs(
-        Map<PValue, JavaRDD<?>> pValueToRddMap,
+        Map<String, JavaRDD<?>> pValueToRddMap,
         NativeSpark nativeSparkCode) {
         super.computeOutputs();
         this.pValueToRddMap = pValueToRddMap;
@@ -43,18 +41,18 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
     /**
      * Get the RDD that implements the given PCollection.
      *
-     * @param value the PCollection
+     * @param pCollectionName the PCollection
      * @param <T> the type of elements in the PCollection / RDD
      * @return the RDD implementing the PCollection
      */
     @Override
-    public <T> JavaRDD<T> get(PCollection<T> value) {
-        if (pValueToRddMap.containsKey(value)) {
-            JavaRDD<T> rdd = ((JavaRDD<WindowedValue<T>>) pValueToRddMap.get(value))
+    public <T> JavaRDD<T> get(String pCollectionName) {
+        if (pValueToRddMap.containsKey(pCollectionName)) {
+            JavaRDD<T> rdd = ((JavaRDD<WindowedValue<T>>) pValueToRddMap.get(pCollectionName))
                 .map(wv -> wv.getValue());
             return rdd;
         }
-        throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
+        throw new IllegalStateException("Cannot resolve un-known PObject: " + pCollectionName);
 
     }
 
@@ -74,7 +72,7 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
     }
 
     /**
-     * Get all the outputs produced
+     * Get all the outputs produced.
      * @return the map of key-value pairs produced by the NativeSpark code.
      */
      Map<String, Object> getOutputs() {

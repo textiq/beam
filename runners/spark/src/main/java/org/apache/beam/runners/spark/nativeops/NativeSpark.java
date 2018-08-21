@@ -1,9 +1,11 @@
 package org.apache.beam.runners.spark.nativeops;
 
+import java.io.Serializable;
+
 /**
  * Wrapper for native spark code.
  */
-public interface NativeSpark  {
+public interface NativeSpark extends Serializable {
 
     /**
      * The native spark code that should be executed.

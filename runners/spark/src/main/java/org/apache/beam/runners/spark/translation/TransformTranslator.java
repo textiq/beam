@@ -103,7 +103,7 @@ public final class TransformTranslator {
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
-        pValueToRddMap.put(context.getOutput(transform), unionRDD);
+        pValueToRddMap.put(context.getOutput(transform).getName(), unionRDD);
         context.putDataset(transform, new BoundedDataset<>(unionRDD));
       }
 
@@ -150,7 +150,7 @@ public final class TransformTranslator {
                     context.getSerializableOptions(),
                     accum));
 
-        pValueToRddMap.put(context.getOutput(transform), groupedAlsoByWindow);
+        pValueToRddMap.put(context.getOutput(transform).getName(), groupedAlsoByWindow);
         context.putDataset(transform, new BoundedDataset<>(groupedAlsoByWindow));
       }
 
@@ -191,7 +191,7 @@ public final class TransformTranslator {
                         in.getWindows(),
                         in.getPane()));
 
-        pValueToRddMap.put(context.getOutput(transform), outRDD);
+        pValueToRddMap.put(context.getOutput(transform).getName(), outRDD);
         context.putDataset(transform, new BoundedDataset<>(outRDD));
       }
 
@@ -267,7 +267,7 @@ public final class TransformTranslator {
           }
         }
 
-        pValueToRddMap.put(context.getOutput(transform), outRdd);
+        pValueToRddMap.put(context.getOutput(transform).getName(), outRdd);
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
 
@@ -327,7 +327,7 @@ public final class TransformTranslator {
                 .map(TranslationUtils.fromPairFunction())
                 .map(TranslationUtils.toKVByWindowInValue());
 
-        pValueToRddMap.put(context.getOutput(transform), outRdd);
+        pValueToRddMap.put(context.getOutput(transform).getName(), outRdd);
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }
 
@@ -405,7 +405,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          pValueToRddMap.put(output.getValue(), values);
+          pValueToRddMap.put(output.getValue().getName(), values);
           context.putDataset(output.getValue(), new BoundedDataset<>(values), false);
         }
       }
@@ -458,7 +458,7 @@ public final class TransformTranslator {
                     jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
                 .toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        pValueToRddMap.put(context.getOutput(transform), input);
+        pValueToRddMap.put(context.getOutput(transform).getName(), input);
         context.putDataset(transform, new BoundedDataset<>(input), true);
       }
 
@@ -503,7 +503,7 @@ public final class TransformTranslator {
 
         context.putBoundedDatasetFromValues(transform, elems, coder);
         JavaRDD rdd = context.putBoundedDatasetFromValues(transform, elems, coder);
-        pValueToRddMap.put(context.getOutput(transform), rdd);
+        pValueToRddMap.put(context.getOutput(transform).getName(), rdd);
       }
 
       @Override
@@ -562,7 +562,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
             GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
 
-        pValueToRddMap.put(context.getOutput(transform), reshuffled);
+        pValueToRddMap.put(context.getOutput(transform).getName(), reshuffled);
         context.putDataset(transform, new BoundedDataset<>(reshuffled));
       }
 
@@ -575,9 +575,9 @@ public final class TransformTranslator {
 
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
-  private static final Map<PValue, JavaRDD<?>> pValueToRddMap = new HashMap<>();
+  private static final Map<String, JavaRDD<?>> pValueToRddMap = new HashMap<>();
 
-  public static Map<PValue, JavaRDD<?>> getPValueToRddMap() {
+  public static Map<String, JavaRDD<?>> getPValueToRddMap() {
     return pValueToRddMap;
   }
 

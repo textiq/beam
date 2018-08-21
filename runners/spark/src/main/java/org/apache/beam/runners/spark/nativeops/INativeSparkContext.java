@@ -1,6 +1,5 @@
 package org.apache.beam.runners.spark.nativeops;
 
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaRDD;
 
 /**
@@ -10,11 +9,11 @@ public interface INativeSparkContext {
 
     /**
      * Get the RDD implementing the given PCollection.
-     * @param value the PCollection
+     * @param pCollectionName the PCollection
      * @param <T> the type of object in the PCollection
      * @return the RDD representing this PCollection
      */
-    <T> JavaRDD<T> get(PCollection<T> value);
+    <T> JavaRDD<T> get(String pCollectionName);
 
     /**
      * Return an object from the NativeSparkCode.

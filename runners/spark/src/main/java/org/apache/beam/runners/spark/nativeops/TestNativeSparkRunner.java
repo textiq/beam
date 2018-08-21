@@ -39,7 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Wraps an instance of NativeSpark with some utilities for testing
+ * Wraps an instance of NativeSpark with some utilities for testing.
  */
 public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipelineResult>
     implements INativeSparkRunner {
