@@ -458,10 +458,10 @@ public class MetricsContainerStepMap implements Serializable {
   }
 
   public String toString() {
-    return "[<br/> " + StringUtils.join(metricsContainers
+    return "[ " + StringUtils.join(metricsContainers
                                 .entrySet()
                                 .stream()
                                 .map(e -> e.getKey() + " : " + e.getValue().toString())
-                                .collect(Collectors.toSet()), ", ") + "</br>]";
+                                .collect(Collectors.toSet()), ", ") + " ]";
   }
 }
