@@ -33,4 +33,12 @@ public class NativeSparkPipelineResult extends SparkPipelineResult.BatchMode {
         }
         return (T) outputData.get(variable);
     }
+
+    /**
+     * Returns a mapping of all produced outputs.
+     * @return the produced outputs
+     */
+    public Map<String, Object> getValues() {
+        return outputData;
+    }
 }
