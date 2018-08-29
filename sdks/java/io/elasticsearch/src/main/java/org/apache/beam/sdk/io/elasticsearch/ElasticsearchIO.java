@@ -672,7 +672,14 @@ public class ElasticsearchIO {
       List<String> batch = new ArrayList<>();
       for (JsonNode hit : hits) {
         String document = hit.path("_source").toString();
-        batch.add(document);
+        JsonObject mainDocument = new JsonParser().parse(document).getAsJsonObject();
+        String matchedQueries = hit.path("matched_queries").toString();
+        if (matchedQueries == null || matchedQueries.length() == 0) {
+          matchedQueries = "[]";
+        }
+        JsonArray matchedQueriesDocument = new JsonParser().parse(matchedQueries).getAsJsonArray();
+        mainDocument.add("matched_queries", matchedQueriesDocument);
+        batch.add(mainDocument.toString());
       }
       batchIterator = batch.listIterator();
       current = batchIterator.next();
