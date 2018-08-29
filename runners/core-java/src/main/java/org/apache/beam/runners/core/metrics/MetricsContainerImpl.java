@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -210,5 +211,25 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     for (Map.Entry<MetricName, GaugeCell> counter : updates.entries()) {
       current.get(counter.getKey()).update(counter.getValue().getCumulative());
     }
+  }
+
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{");
+    for (Entry<MetricName, CounterCell> e: counters.entries()) {
+      sb.append(" " + e.getKey().namespace() + ":" + e.getKey().name()
+                + " :: " + e.getValue().getCumulative());
+    }
+    for (Entry<MetricName, DistributionCell> e: distributions.entries()) {
+      sb.append(" " + e.getKey().namespace() + ":" + e.getKey().name()
+                + " :: " + e.getValue().getCumulative());
+    }
+    for (Entry<MetricName, GaugeCell> e: gauges.entries()) {
+      sb.append(" " + e.getKey().namespace() + ":" + e.getKey().name()
+                + " :: " + e.getValue().getCumulative());
+    }
+
+    sb.append(" }");
+    return sb.toString();
   }
 }

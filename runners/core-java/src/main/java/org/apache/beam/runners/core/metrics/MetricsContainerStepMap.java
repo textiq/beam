@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Metrics containers by step.
@@ -452,5 +454,14 @@ public class MetricsContainerStepMap implements Serializable {
         return committed;
       }
     }
+
+  }
+
+  public String toString() {
+    return "[ " + StringUtils.join(metricsContainers
+                                .entrySet()
+                                .stream()
+                                .map(e -> e.getKey() + " : " + e.getValue().toString())
+                                .collect(Collectors.toSet()), ", ") + " ]";
   }
 }

@@ -31,6 +31,7 @@ test {
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.commons_lang3
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":sdks:java:core", configuration: "shadow")
