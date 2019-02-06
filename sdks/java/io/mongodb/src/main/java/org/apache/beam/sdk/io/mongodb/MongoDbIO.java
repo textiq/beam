@@ -26,6 +26,7 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
@@ -327,7 +328,7 @@ public class MongoDbIO {
       try {
         Document stats = mongoDatabase.runCommand(stat);
         return stats.get("size", Number.class).longValue();
-      } catch (Exception e) {
+      } catch (MongoCommandException  e) {
         // collection does not exist, size = 0
         return 0;
       }
@@ -365,7 +366,7 @@ public class MongoDbIO {
         try {
           Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
           splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
-        } catch (Exception e) {
+        } catch (MongoCommandException e) {
           // collection does not exist: no split keys to work with
           splitKeys = Collections.EMPTY_LIST;
         }
