@@ -148,11 +148,18 @@ public class MongoDbIOTest implements Serializable {
 
   @Test
   public void testSplitIntoFilters() throws Exception {
+    // A single split will result in two filters
     ArrayList<Document> documents = new ArrayList<>();
     documents.add(new Document("_id", 56));
+    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, null);
+    assertEquals(2, filters.size());
+    assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
+    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\")}} ]}", filters.get(1));
+
+    // Add two more splits; now we should have 4 filters
     documents.add(new Document("_id", 109));
     documents.add(new Document("_id", 256));
-    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, null);
+    filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, null);
     assertEquals(4, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
     assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\"),$lte:ObjectId(\"109\")}} ]}",

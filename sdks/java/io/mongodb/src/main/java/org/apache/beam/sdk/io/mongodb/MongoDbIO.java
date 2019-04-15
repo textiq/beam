@@ -380,6 +380,7 @@ public class MongoDbIO {
         }
 
         int numSplits = splitKeys.size();
+
         List<String> shardFilters = splitKeysToFilters(splitKeys, spec.filter(), spec.idType());
 
         int limitPerReader = -1;
@@ -463,6 +464,12 @@ public class MongoDbIO {
           rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:%s}}",
               getFilterString(idType, splitKey));
           filters.add(formatFilter(rangeFilter, additionalFilter));
+          // If there is only one, also generate a range from the split to the end
+          if (splitKeys.size() == 1) {
+            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
+                                        getFilterString(idType, splitKey));
+            filters.add(formatFilter(rangeFilter, additionalFilter));
+          }
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
