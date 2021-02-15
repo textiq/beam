@@ -501,7 +501,7 @@ public class Pipeline {
   @Nullable private CoderRegistry coderRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
-  public final PipelineOptions defaultOptions;
+  protected final PipelineOptions defaultOptions;
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
