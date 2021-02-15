@@ -501,7 +501,7 @@ public class Pipeline {
   @Nullable private CoderRegistry coderRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
-  protected final PipelineOptions defaultOptions;
+  public final PipelineOptions defaultOptions;
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     this.transforms = transforms;
@@ -512,6 +512,9 @@ public class Pipeline {
     this(new TransformHierarchy(), options);
   }
 
+  public PipelineOptions getOptions(){
+    return defaultOptions;
+  }
   @Override
   public String toString() {
     return "Pipeline#" + hashCode();

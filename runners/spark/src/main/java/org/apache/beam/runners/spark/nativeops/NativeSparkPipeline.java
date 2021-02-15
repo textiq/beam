@@ -35,12 +35,13 @@ public class NativeSparkPipeline extends Pipeline {
      * specified by the options.
      */
     public NativeSparkPipelineResult run(NativeSpark spark) {
-        INativeSparkRunner runner = (INativeSparkRunner) PipelineRunner.fromOptions(defaultOptions);
+        PipelineOptions options = getOptions();
+        INativeSparkRunner runner = (INativeSparkRunner) PipelineRunner.fromOptions(options);
         // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
         // pipeline.
         LOG.debug("Running {} via {}", this, runner);
         try {
-            validate(defaultOptions);
+            validate(options);
             return runner.run(this, spark);
         } catch (UserCodeException e) {
             // This serves to replace the stack with one that ends here and
@@ -50,5 +51,4 @@ public class NativeSparkPipeline extends Pipeline {
             throw new PipelineExecutionException(e.getCause());
         }
     }
-
 }

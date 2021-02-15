@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * Wraps an instance of NativeSpark with some utilities for testing.
  */
 public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipelineResult>
-    implements INativeSparkRunner {
+      implements INativeSparkRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestNativeSparkRunner.class);
     private final PipelineOptions options;
@@ -62,7 +62,7 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
                                          NativeSpark nativeSparkCode) {
         // Default options suffice to set it up as a test runner
         TestSparkPipelineOptions testSparkOptions =
-            PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
+              PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
 
         NativeSparkPipelineResult result = null;
 
@@ -79,9 +79,9 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
         PipelineResult.State finishState = result.getState();
         // assert finish state.
         assertThat(
-            String.format("Finish state %s is not allowed.", finishState),
-            finishState,
-            is(PipelineResult.State.DONE));
+              String.format("Finish state %s is not allowed.", finishState),
+              finishState,
+              is(PipelineResult.State.DONE));
         // assert via matchers.
         assertThat(result, testSparkOptions.getOnCreateMatcher());
         assertThat(result, testSparkOptions.getOnSuccessMatcher());
@@ -95,12 +95,12 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
     }
 
     private static void awaitWatermarksOrTimeout(
-        TestSparkPipelineOptions testSparkPipelineOptions, NativeSparkPipelineResult result) {
+          TestSparkPipelineOptions testSparkPipelineOptions, NativeSparkPipelineResult result) {
         Long timeoutMillis = Duration.standardSeconds(
-            checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
+              checkNotNull(testSparkPipelineOptions.getTestTimeoutSeconds())).getMillis();
         Long batchDurationMillis = testSparkPipelineOptions.getBatchIntervalMillis();
         Instant stopPipelineWatermark =
-            new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
+              new Instant(testSparkPipelineOptions.getStopPipelineWatermark());
         // we poll for pipeline status in batch-intervals. while this is not in-sync with Spark's
         // execution clock, this is good enough.
         // we break on timeout or end-of-time WM, which ever comes first.
@@ -108,7 +108,7 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
         result.waitUntilFinish(Duration.millis(batchDurationMillis));
         do {
             SparkTimerInternals sparkTimerInternals =
-                SparkTimerInternals.global(GlobalWatermarkHolder.get(batchDurationMillis));
+                  SparkTimerInternals.global(GlobalWatermarkHolder.get(batchDurationMillis));
             sparkTimerInternals.advanceWatermark();
             globalWatermark = sparkTimerInternals.currentInputWatermarkTime();
             // let another batch-interval period of execution, just to reason about WM propagation.
@@ -120,13 +120,13 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
     @VisibleForTesting
     void adaptBoundedReads(Pipeline pipeline) {
         pipeline.replaceAll(
-            Collections.singletonList(
-                PTransformOverride.of(
-                    PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-                    new AdaptedBoundedAsUnbounded.Factory())));
+              Collections.singletonList(
+                    PTransformOverride.of(
+                          PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+                          new AdaptedBoundedAsUnbounded.Factory())));
     }
 
-  private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
+    private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
         private final BoundedReadFromUnboundedSource<T> source;
 
         AdaptedBoundedAsUnbounded(BoundedReadFromUnboundedSource<T> source) {
@@ -137,26 +137,26 @@ public final class TestNativeSparkRunner extends PipelineRunner<NativeSparkPipel
         @Override
         public PCollection<T> expand(PBegin input) {
             PTransform<PBegin, ? extends PCollection<ValueWithRecordId<T>>> replacingTransform =
-                new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
+                  new UnboundedReadFromBoundedSource<>(source.getAdaptedSource());
             return (PCollection<T>) input.apply(replacingTransform)
-                .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
+                  .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn()));
         }
 
         static class Factory<T>
-            implements PTransformOverrideFactory<
-            PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
+              implements PTransformOverrideFactory<
+              PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
             @Override
             public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-                    AppliedPTransform<PBegin, PCollection<T>,
-                    BoundedReadFromUnboundedSource<T>> transform) {
+                  AppliedPTransform<PBegin, PCollection<T>,
+                        BoundedReadFromUnboundedSource<T>> transform) {
                 return PTransformReplacement.of(
-                    transform.getPipeline().begin(),
-                    new AdaptedBoundedAsUnbounded<>(transform.getTransform()));
+                      transform.getPipeline().begin(),
+                      new AdaptedBoundedAsUnbounded<>(transform.getTransform()));
             }
 
             @Override
             public Map<PValue, ReplacementOutput> mapOutputs(
-                Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+                  Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
                 return ReplacementOutputs.singleton(outputs, newOutput);
             }
         }
