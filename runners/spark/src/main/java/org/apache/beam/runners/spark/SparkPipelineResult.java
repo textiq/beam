@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -118,14 +119,16 @@ public abstract class SparkPipelineResult implements PipelineResult {
   }
 
   /** Represents the result of running a batch pipeline. */
-  static class BatchMode extends SparkPipelineResult {
+  public static class BatchMode extends SparkPipelineResult {
 
-    BatchMode(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
+    protected BatchMode(final Future<?> pipelineExecution, final JavaSparkContext
+        javaSparkContext) {
       super(pipelineExecution, javaSparkContext);
     }
 
     @Override
-    protected void stop() {
+    @VisibleForTesting
+    public void stop() {
       SparkContextFactory.stopSparkContext(javaSparkContext);
       if (Objects.equals(state, State.RUNNING)) {
         this.state = State.STOPPED;
