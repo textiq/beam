@@ -1,10 +1,11 @@
 package org.apache.beam.runners.spark.nativeops;
 
 import org.apache.spark.api.java.JavaRDD;
-
+import org.apache.spark.api.java.JavaSparkContext;
 /**
  * Context for running native spark code.
  */
+
 public interface INativeSparkContext {
 
     /**
@@ -21,4 +22,6 @@ public interface INativeSparkContext {
      * @param object the object to store
      */
     void output(String key, Object object);
+
+    JavaSparkContext getSparkContext();
 }
