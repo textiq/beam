@@ -78,4 +78,8 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
      Map<String, Object> getOutputs() {
         return outputData;
     }
+
+     public JavaSparkContext getSparkContext(){
+        return jsc;
+     }
 }

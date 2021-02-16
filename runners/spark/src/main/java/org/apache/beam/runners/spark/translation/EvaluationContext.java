@@ -50,7 +50,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
  * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
 public class EvaluationContext {
-  private final JavaSparkContext jsc;
+  protected final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
   private final Pipeline pipeline;
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
