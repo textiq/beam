@@ -48,6 +48,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterator
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
+import org.bson.BsonType;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.junit.AfterClass;
@@ -121,7 +122,7 @@ public class MongoDbIOTest {
     // A single split will result in two filters
     ArrayList<Document> documents = new ArrayList<>();
     documents.add(new Document("_id", 56));
-    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents);
+    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, BsonType.OBJECT_ID);
     assertEquals(2, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
     assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\")}} ]}", filters.get(1));
@@ -129,7 +130,7 @@ public class MongoDbIOTest {
     // Add two more splits; now we should have 4 filters
     documents.add(new Document("_id", 109));
     documents.add(new Document("_id", 256));
-    filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents);
+    filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, BsonType.OBJECT_ID);
     assertEquals(4, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
     assertEquals(
