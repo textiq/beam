@@ -60,6 +60,12 @@ class Repositories {
         url "https://packages.confluent.io/maven/"
         content { includeGroup "io.confluent" }
       }
+
+      // For textiq
+      maven {
+        url "http://maven-aws.textiq.net:8080/repository/internal"
+        content { allowInsecureProtocol = true }
+      }
     }
 
     // plugin to support repository authentication via ~/.m2/settings.xml
