@@ -26,6 +26,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoClientURI;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -422,9 +423,13 @@ public class MongoDbIO {
       // it gives the size for the entire collection
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", collection);
-      Document stats = mongoDatabase.runCommand(stat);
-
-      return stats.get("size", Number.class).longValue();
+      try {
+        Document stats = mongoDatabase.runCommand(stat);
+        return stats.get("size", Number.class).longValue();
+      }  catch (MongoCommandException  e) {
+        // collection does not exist, size = 0
+        return 0;
+      }
     }
 
     @Override
@@ -470,11 +475,17 @@ public class MongoDbIO {
             // maxChunkSize is the Mongo partition size in MB
             LOG.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
             splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
-            Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
-            splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            try {
+              Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
+              splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            }catch (MongoCommandException e) {
+              // collection does not exist: no split keys to work with
+              splitKeys = Collections.EMPTY_LIST;
+            }
           }
 
           if (splitKeys.size() < 1) {
+            // this includes the case of an empty collection
             LOG.debug("Split keys is low, using a unique source");
             return Collections.singletonList(this);
           }
