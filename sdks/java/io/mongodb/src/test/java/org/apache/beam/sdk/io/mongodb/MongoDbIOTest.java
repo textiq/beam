@@ -40,11 +40,14 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
@@ -259,6 +262,36 @@ public class MongoDbIOTest {
 
     PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
 
+    pipeline.run();
+  }
+
+  @Test
+  public void testReadWithProjection() {
+    PCollection<Document> output =
+          pipeline.apply(
+                MongoDbIO.read()
+                      .withUri("mongodb://localhost:" + port)
+                      .withDatabase(DATABASE)
+                      .withCollection(COLLECTION)
+                      .withQueryFn(FindQuery.create().withProjection(Lists.newArrayList("scientist"))));
+
+    PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
+
+    PAssert.thatSingleton(
+          output
+                .apply("Filter docs with country field present",
+                       Filter.by((SerializableFunction<Document, Boolean>)
+                                       input -> input.getString("country") != null))
+                .apply("CountWithCountry", Count.globally()))
+          .isEqualTo(0L);
+
+    PAssert.thatSingleton(
+          output
+                .apply("Filter docs with scientist field present",
+                       Filter.by((SerializableFunction<Document, Boolean>)
+                                       input -> input.getString("scientist") != null))
+                .apply("CountWithScientist", Count.globally()))
+          .isEqualTo(1000L);
     pipeline.run();
   }
 
