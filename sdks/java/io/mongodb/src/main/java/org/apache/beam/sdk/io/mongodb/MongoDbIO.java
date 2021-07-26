@@ -168,7 +168,7 @@ public class MongoDbIO {
 
     abstract @Nullable BsonType idType();
 
-     abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn();
+    abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn();
 
     abstract Builder builder();
 
@@ -573,7 +573,7 @@ public class MongoDbIO {
           filters.add(String.format("%s ]}", rangeFilter));
           // If there is only one split, also generate a range from the split to the end
           if (splitKeys.size() == 1) {
-            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s)}}",
+            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
                                         getFilterString(idType,splitKey));
             filters.add(String.format("%s ]}", rangeFilter));
           }
