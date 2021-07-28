@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
 
+package org.apache.beam.runners.spark.nativeops;
+
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 import static org.apache.beam.runners.spark.util.SparkCommon.startEventLoggingListener;
 
@@ -24,7 +26,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.spark.AbsSparkRunner;
+import org.apache.beam.runners.spark.SparkContextOptions;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkPipelineResult;
+import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.SparkTransformOverrides;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
@@ -53,26 +62,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The SparkRunner translate operations defined on a pipeline to a representation executable by
- * Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam pipeline
- * with the default options of a single threaded spark instance in local mode, we would do the
- * following:
- *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineResult result =
- * (SparkPipelineResult) p.run(); }
- *
- * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
- * we would do the following:
- *
- * <p>{@code Pipeline p = [logic for pipeline creation] SparkPipelineOptions options =
- * SparkPipelineOptionsFactory.create(); options.setSparkMaster("spark://host:port");
- * SparkPipelineResult result = (SparkPipelineResult) p.run(); }
+ * The NativeSparkRunner.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
-public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
-  private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
+public final class NativeSparkRunner extends AbsSparkRunner<NativeSparkPipelineResult>
+      implements INativeSparkRunner {
+  private static final Logger LOG = LoggerFactory.getLogger(NativeSparkRunner.class);
 
   /**
    * Creates and returns a new SparkRunner with default options. In particular, against a spark
@@ -80,20 +74,10 @@ public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
    *
    * @return A pipeline runner with default options.
    */
-  public static SparkRunner create() {
+  public static NativeSparkRunner create() {
     SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    return new SparkRunner(options);
-  }
-
-  /**
-   * Creates and returns a new SparkRunner with specified options.
-   *
-   * @param options The SparkPipelineOptions to use when executing the job.
-   * @return A pipeline runner that will execute with specified options.
-   */
-  public static SparkRunner create(SparkPipelineOptions options) {
-    return new SparkRunner(options);
+    options.setRunner(NativeSparkRunner.class);
+    return new NativeSparkRunner(options);
   }
 
   /**
@@ -102,23 +86,38 @@ public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
    * @param options The PipelineOptions to use when executing the job.
    * @return A pipeline runner that will execute with specified options.
    */
-  public static SparkRunner fromOptions(PipelineOptions options) {
-    return new SparkRunner(PipelineOptionsValidator.validate(SparkPipelineOptions.class, options));
+  public static NativeSparkRunner fromOptions(PipelineOptions options) {
+    return new NativeSparkRunner(PipelineOptionsValidator.validate(SparkPipelineOptions.class, options));
   }
 
   /**
-   * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
-   * thread.
+   * The run method for a regular pipeline as specified by the Runner interface.
+   * Should not be used for native spark pipelines.
+   *
+   * @param pipeline the pipeline to run
+   * @return nothing
+   * @throws RuntimeException always
    */
-  protected SparkRunner(SparkPipelineOptions options) {
+  @Override
+  public NativeSparkPipelineResult run(Pipeline pipeline) {
+    throw new RuntimeException("Use run(NativeSparkPipeline, NativeSpark) instead.");
+  }
+
+  protected NativeSparkRunner(SparkPipelineOptions options) {
     super(options);
   }
 
+  /**
+   * The Run method for native spark pipeline. This should be used instead of
+   * run(pipeline).
+   */
   @Override
-  public SparkPipelineResult run(final Pipeline pipeline) {
+  @SuppressWarnings("CatchAndPrintStackTrace")
+  public NativeSparkPipelineResult run(final NativeSparkPipeline pipeline,
+                                       NativeSpark nativeSparkCode) {
     LOG.info("Executing pipeline using the SparkRunner.");
 
-    final SparkPipelineResult result;
+    final NativeSparkPipelineResult result;
     final Future<?> startPipeline;
 
     final SparkPipelineTranslator translator;
@@ -144,54 +143,12 @@ public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
     EventLoggingListener eventLoggingListener = null;
     JavaSparkContext jsc = null;
     if (pipelineOptions.isStreaming()) {
-      CheckpointDir checkpointDir = new CheckpointDir(pipelineOptions.getCheckpointDir());
-      SparkRunnerStreamingContextFactory streamingContextFactory =
-          new SparkRunnerStreamingContextFactory(pipeline, pipelineOptions, checkpointDir);
-      final JavaStreamingContext jssc =
-          JavaStreamingContext.getOrCreate(
-              checkpointDir.getSparkCheckpointDir().toString(), streamingContextFactory);
-      jsc = jssc.sparkContext();
-      eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
-
-      // Checkpoint aggregator/metrics values
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new AggregatorsAccumulator.AccumulatorCheckpointingSparkListener()));
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(
-              new MetricsAccumulator.AccumulatorCheckpointingSparkListener()));
-
-      // register user-defined listeners.
-      for (JavaStreamingListener listener :
-          pipelineOptions.as(SparkContextOptions.class).getListeners()) {
-        LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
-        jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
-      }
-
-      // register Watermarks listener to broadcast the advanced WMs.
-      jssc.addStreamingListener(
-          new JavaStreamingListenerWrapper(new WatermarkAdvancingStreamingListener()));
-
-      // The reason we call initAccumulators here even though it is called in
-      // SparkRunnerStreamingContextFactory is because the factory is not called when resuming
-      // from checkpoint (When not resuming from checkpoint initAccumulators will be called twice
-      // but this is fine since it is idempotent).
-      initAccumulators(pipelineOptions, jssc.sparkContext());
-
-      startPipeline =
-          executorService.submit(
-              () -> {
-                LOG.info("Starting streaming pipeline execution.");
-                jssc.start();
-              });
-      executorService.shutdown();
-
-      result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
+      throw new RuntimeException("Cannot use streaming mode with NativeSparkRunner");
     } else {
       jsc = SparkContextFactory.getSparkContext(pipelineOptions);
       eventLoggingListener = startEventLoggingListener(jsc, pipelineOptions, startTime);
-      final EvaluationContext evaluationContext =
-          new EvaluationContext(jsc, pipeline, pipelineOptions);
+      final NativeSparkEvaluationContext evaluationContext =
+            new NativeSparkEvaluationContext(jsc, pipeline, pipelineOptions);
       translator = new TransformTranslator.Translator();
 
       // update the cache candidates
@@ -199,15 +156,16 @@ public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
 
       initAccumulators(pipelineOptions, jsc);
       startPipeline =
-          executorService.submit(
-              () -> {
-                pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
-                evaluationContext.computeOutputs();
-                LOG.info("Batch pipeline execution complete.");
-              });
+            executorService.submit(
+                  () -> {
+                    pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
+                    evaluationContext.computeOutputs(nativeSparkCode);
+                    LOG.info("Batch pipeline execution complete.");
+                  });
       executorService.shutdown();
 
-      result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
+      result = new NativeSparkPipelineResult(startPipeline, jsc,
+                                                 evaluationContext.getOutputs());
     }
 
     if (pipelineOptions.getEnableSparkMetricSinks()) {
@@ -218,20 +176,80 @@ public final class SparkRunner extends AbsSparkRunner<SparkPipelineResult> {
     // runner-specific
     // MetricsContainerStepMap
     MetricsPusher metricsPusher =
-        new MetricsPusher(
-            MetricsAccumulator.getInstance().value(),
-            pipelineOptions.as(MetricsOptions.class),
-            result);
+          new MetricsPusher(
+                MetricsAccumulator.getInstance().value(),
+                pipelineOptions.as(MetricsOptions.class),
+                result);
     metricsPusher.start();
 
     if (eventLoggingListener != null && jsc != null) {
       eventLoggingListener.onApplicationStart(
-          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
+            SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
       eventLoggingListener.onApplicationEnd(
-          new SparkListenerApplicationEnd(Instant.now().getMillis()));
+            new SparkListenerApplicationEnd(Instant.now().getMillis()));
       eventLoggingListener.stop();
     }
 
     return result;
+
+    /*
+
+    LOG.info("Executing pipeline using the SparkRunner.");
+
+    final NativeSparkPipelineResult result;
+    final Future<?> startPipeline;
+
+    final SparkPipelineTranslator translator;
+
+    final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+    MetricsEnvironment.setMetricsSupported(true);
+
+    // visit the pipeline to determine the translation mode
+    detectTranslationMode(pipeline);
+
+    if (pipelineOptions.isStreaming()) {
+      throw new RuntimeException("Cannot use streaming mode with NativeSparkRunner");
+    } else {
+      // create the evaluation context
+      PipelineResources.prepareFilesForStaging(pipelineOptions);
+
+      final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
+      final NativeSparkEvaluationContext evaluationContext =
+            new NativeSparkEvaluationContext(jsc, pipeline, pipelineOptions);
+
+      translator = new TransformTranslator.Translator();
+
+      // update the cache candidates
+      updateCacheCandidates(pipeline, translator, evaluationContext);
+
+      initAccumulators(pipelineOptions, jsc);
+
+      startPipeline =
+            executorService.submit(
+                  () -> {
+                    try {
+                      LOG.info("Running executor");
+
+                      pipeline.traverseTopologically(new Evaluator(translator,
+                                                                   evaluationContext));
+                      evaluationContext.computeOutputs(nativeSparkCode);
+                      LOG.info("Batch pipeline execution complete.");
+                    } catch (Throwable t) {
+                      t.printStackTrace();
+                    }
+                  });
+      executorService.shutdown();
+
+      result = new NativeSparkPipelineResult(startPipeline, jsc,
+                                             evaluationContext.getSparkOutputs());
+    }
+
+    if (pipelineOptions.getEnableSparkMetricSinks()) {
+      registerMetricsSource(pipelineOptions.getAppName());
+    }
+
+    return result;
+     */
   }
 }

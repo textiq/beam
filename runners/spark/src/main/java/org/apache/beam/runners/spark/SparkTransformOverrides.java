@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 @SuppressWarnings({
   "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
-class SparkTransformOverrides {
+public class SparkTransformOverrides {
   public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     // TODO: [BEAM-5358] Support @RequiresStableInput on Spark runner

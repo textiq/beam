@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.spark.AbsSparkRunner.TranslationMode;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
@@ -33,7 +34,6 @@ import org.slf4j.LoggerFactory;
  * DStream holder Can also crate a DStream from a supplied queue of values, but mainly for testing.
  */
 public class UnboundedDataset<T> implements Dataset {
-
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedDataset.class);
 
   private JavaDStream<WindowedValue<T>> dStream;
@@ -82,5 +82,10 @@ public class UnboundedDataset<T> implements Dataset {
   @Override
   public void setName(String name) {
     // ignore
+  }
+
+  @Override
+  public TranslationMode getType() {
+    return TranslationMode.STREAMING;
   }
 }

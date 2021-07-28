@@ -612,7 +612,7 @@ public final class TransformTranslator {
                 Collections.singletonList(new byte[0]),
                 context.getSparkContext(),
                 ByteArrayCoder.of());
-        context.putDataset(transform, output);
+        context.putDataset(transform,output);
       }
 
       @Override

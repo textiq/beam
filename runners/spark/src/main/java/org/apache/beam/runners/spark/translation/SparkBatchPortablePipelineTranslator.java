@@ -44,6 +44,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.spark.AbsSparkRunner.TranslationMode;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.ByteArray;
@@ -291,6 +292,11 @@ public class SparkBatchPortablePipelineTranslator
           @Override
           public void setName(String name) {
             staged.setName(name);
+          }
+
+          @Override
+          public TranslationMode getType() {
+            return TranslationMode.BATCH;
           }
         });
     // pop dataset to mark RDD as used

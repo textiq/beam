@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
+import org.apache.beam.runners.spark.AbsSparkRunner.TranslationMode;
 import org.apache.beam.sdk.coders.Coder;
 
 /** Holder for Spark RDD/DStream. */
@@ -28,4 +29,6 @@ public interface Dataset extends Serializable {
   void action();
 
   void setName(String name);
+
+  TranslationMode getType();
 }

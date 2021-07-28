@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -55,11 +57,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class EvaluationContext {
-  private final JavaSparkContext jsc;
+  protected final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
   private final Pipeline pipeline;
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
-  private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
+  protected final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
@@ -191,7 +193,7 @@ public class EvaluationContext {
    * @param pvalue output of transform
    * @param dataset created Dataset from transform
    */
-  private void putDataset(
+  protected void putDataset(
       @Nullable PTransform<?, ? extends PValue> transform, PValue pvalue, Dataset dataset) {
     try {
       dataset.setName(pvalue.getName());

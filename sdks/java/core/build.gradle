@@ -105,4 +105,5 @@ dependencies {
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
   testRuntimeOnly library.java.slf4j_jdk14
+  testCompile group: 'org.apache.spark', name: 'spark-mllib_2.12', version: '3.1.2'
 }
