@@ -594,7 +594,7 @@ public class Pipeline {
   }
 
   @VisibleForTesting
-  void validate(PipelineOptions options) {
+  public void validate(PipelineOptions options) {
     this.traverseTopologically(new ValidateVisitor(options));
     final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
         Collections2.filter(instancePerName.asMap().entrySet(), Predicates.not(new IsUnique<>()));

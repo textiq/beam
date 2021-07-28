@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.spark.AbsSparkRunner.TranslationMode;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -131,4 +132,10 @@ public class BoundedDataset<T> implements Dataset {
   public void setName(String name) {
     getRDD().setName(name);
   }
+
+  @Override
+  public TranslationMode getType() {
+    return TranslationMode.BATCH;
+  }
+
 }

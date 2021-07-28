@@ -33,6 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -122,14 +123,16 @@ public abstract class SparkPipelineResult implements PipelineResult {
   }
 
   /** Represents the result of running a batch pipeline. */
-  static class BatchMode extends SparkPipelineResult {
+   public static class BatchMode extends SparkPipelineResult {
 
-    BatchMode(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
+    protected BatchMode(final Future<?> pipelineExecution,
+                        final JavaSparkContext javaSparkContext) {
       super(pipelineExecution, javaSparkContext);
     }
 
     @Override
-    protected void stop() {
+    @VisibleForTesting
+    public void stop() {
       SparkContextFactory.stopSparkContext(javaSparkContext);
       if (Objects.equals(state, State.RUNNING)) {
         this.state = State.STOPPED;

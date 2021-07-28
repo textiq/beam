@@ -189,6 +189,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile "org.apache.zookeeper:zookeeper:3.4.11"
+  testCompile "org.apache.spark:spark-mllib_$spark_scala_version:$spark_version"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(":sdks:java:io:hadoop-format")

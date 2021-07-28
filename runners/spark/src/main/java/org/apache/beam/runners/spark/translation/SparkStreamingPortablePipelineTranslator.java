@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.runners.core.construction.graph.QueryablePipeline;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.spark.AbsSparkRunner.TranslationMode;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -280,6 +281,11 @@ public class SparkStreamingPortablePipelineTranslator
           @Override
           public void setName(String name) {
             // ignore
+          }
+
+          @Override
+          public TranslationMode getType() {
+            return TranslationMode.STREAMING;
           }
         });
     // Pop dataset to mark DStream as used

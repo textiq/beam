@@ -46,7 +46,7 @@ import org.junit.Test;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
 })
-public class CacheTest {
+  public class CacheTest {
 
   /**
    * Test checks how the cache candidates map is populated by the runner when evaluating the
