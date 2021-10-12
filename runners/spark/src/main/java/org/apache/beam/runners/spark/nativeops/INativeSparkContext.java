@@ -1,5 +1,6 @@
 package org.apache.beam.runners.spark.nativeops;
 
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 /**
@@ -24,4 +25,6 @@ public interface INativeSparkContext {
     void output(String key, Object object);
 
     JavaSparkContext getSparkContext();
+
+    PipelineOptions getPipelineOptions();
 }

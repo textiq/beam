@@ -82,4 +82,8 @@ public class NativeSparkEvaluationContext extends EvaluationContext implements I
      public JavaSparkContext getSparkContext(){
         return jsc;
      }
+
+     public PipelineOptions getPipelineOptions(){
+         return options;
+     }
 }
