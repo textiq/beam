@@ -60,7 +60,7 @@ public class EvaluationContext {
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
-  private final PipelineOptions options;
+  protected final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
