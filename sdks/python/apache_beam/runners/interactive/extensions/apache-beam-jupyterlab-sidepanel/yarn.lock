@@ -1473,16 +1473,16 @@
     "@rmwc/base" "^6.1.4"
     "@rmwc/types" "^6.0.5"
 
-"@rmwc/list@^6.1.3":
-  version "6.1.3"
-  resolved "https://registry.yarnpkg.com/@rmwc/list/-/list-6.1.3.tgz#854abdc83cf4ccbd6b476b43711e0454e068eca8"
-  integrity sha512-zNLoTgZx3N12pKajKJgR3AGfytUHoBMyjj+OhlJa/40EfJaeYtBrurNXsK7dNPJb1kotcBtkvxuhzKt+Q7z1dQ==
+"@rmwc/list@^6.1.4":
+  version "6.1.4"
+  resolved "https://registry.yarnpkg.com/@rmwc/list/-/list-6.1.4.tgz#8cf40d97ded1978b678744e5af0d61226b250460"
+  integrity sha512-/7gAQdYKKDQ554S6JGzEZye+nLTeDhV4M92AwfnXhDxAP+BsLrF5Kxxfw1UD/4M1IpIPDc5diXTTfStiiWMFkw==
   dependencies:
     "@material/list" "^5.1.0"
-    "@rmwc/base" "^6.0.14"
-    "@rmwc/icon" "^6.1.3"
-    "@rmwc/provider" "^6.1.3"
-    "@rmwc/ripple" "^6.1.3"
+    "@rmwc/base" "^6.1.4"
+    "@rmwc/icon" "^6.1.4"
+    "@rmwc/provider" "^6.1.4"
+    "@rmwc/ripple" "^6.1.4"
     "@rmwc/types" "^6.0.5"
 
 "@rmwc/notched-outline@^6.1.4":
