@@ -22,3 +22,4 @@ tensorflow-metadata>=0.13.0,<0.14
 tensorflow-model-analysis>=0.13.2,<0.14
 tensorflow-serving-api>=1.13.0,<1.14
 tensorflow-transform>=0.13.0,<0.14
+tornado>=6.3.3 # not directly required, pinned by Snyk to avoid a vulnerability
