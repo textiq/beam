@@ -16,7 +16,10 @@
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'maven-publish'
+}
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.mongodb')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -37,4 +40,17 @@ dependencies {
   testImplementation "de.flapdoodle.embed:de.flapdoodle.embed.process:3.0.0"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+
+publishing {
+  repositories {
+    mavenLocal()
+  }
+
+  publications {
+    maven(MavenPublication) {
+      from(components.java)
+    }
+  }
 }

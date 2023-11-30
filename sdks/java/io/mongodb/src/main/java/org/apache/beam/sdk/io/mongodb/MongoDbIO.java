@@ -64,9 +64,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.BsonString;
+import org.bson.BsonType;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -151,6 +153,7 @@ public class MongoDbIO {
         .setIgnoreSSLCertificate(false)
         .setSslInvalidHostNameAllowed(false)
         .setQueryFn(FindQuery.create())
+        .setIdType(BsonType.OBJECT_ID)
         .build();
   }
 
@@ -199,6 +202,8 @@ public class MongoDbIO {
     @Pure
     abstract boolean bucketAuto();
 
+    abstract @Nullable BsonType idType();
+
     @Pure
     abstract SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn();
 
@@ -224,6 +229,8 @@ public class MongoDbIO {
       abstract Builder setNumSplits(int numSplits);
 
       abstract Builder setBucketAuto(boolean bucketAuto);
+
+      abstract Builder setIdType(BsonType type);
 
       abstract Builder setQueryFn(
           SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilder);
@@ -318,18 +325,24 @@ public class MongoDbIO {
       return builder().setQueryFn(queryBuilderFn).build();
     }
 
+    public Read withIdType(BsonType type) {
+      checkArgument(type != null, "type can not be null");
+      return builder().setIdType(type).build();
+    }
+
     @Override
     public PCollection<Document> expand(PBegin input) {
       checkArgument(uri() != null, "withUri() is required");
       checkArgument(database() != null, "withDatabase() is required");
       checkArgument(collection() != null, "withCollection() is required");
+      checkArgument(collection() != null, "withCollection() is required");
+      checkArgument(idType() != null, "withIdType() is required");
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
     public long getDocumentCount() {
       checkArgument(uri() != null, "withUri() is required");
       checkArgument(database() != null, "withDatabase() is required");
-      checkArgument(collection() != null, "withCollection() is required");
       return new BoundedMongoDbSource(this).getDocumentCount();
     }
 
@@ -459,9 +472,13 @@ public class MongoDbIO {
       // it gives the size for the entire collection
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", collection);
-      Document stats = mongoDatabase.runCommand(stat);
-
-      return stats.get("size", Number.class).longValue();
+      try {
+        Document stats = mongoDatabase.runCommand(stat);
+        return stats.get("size", Number.class).longValue();
+      }  catch (MongoCommandException  e) {
+        // collection does not exist, size = 0
+        return 0;
+      }
     }
 
     @Override
@@ -512,16 +529,23 @@ public class MongoDbIO {
             // maxChunkSize is the Mongo partition size in MB
             LOG.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
             splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
-            Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
-            splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            try {
+              Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
+              splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
+            }catch (MongoCommandException e) {
+              // collection does not exist: no split keys to work with
+              splitKeys = Collections.EMPTY_LIST;
+            }
           }
 
           if (splitKeys.size() < 1) {
+            // this includes the case of an empty collection
             LOG.debug("Split keys is low, using a unique source");
             return Collections.singletonList(this);
           }
 
-          for (String shardFilter : splitKeysToFilters(splitKeys)) {
+          BsonType idType = Preconditions.checkStateNotNull(spec.idType());
+          for (String shardFilter : splitKeysToFilters(splitKeys, idType)) {
             SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryFn =
                 spec.queryFn();
 
@@ -556,6 +580,21 @@ public class MongoDbIO {
       }
     }
 
+    private static String getFilterString(BsonType type, @NonNull String value) {
+      switch(type) {
+        case STRING:
+          return "\"" + value + "\"";
+        case OBJECT_ID:
+          return "ObjectId(\"" + value + "\")";
+        case DOUBLE:
+        case INT32:
+        case INT64:
+          return value;
+        default:
+          throw new IllegalArgumentException("Unsupported bson type");
+      }
+    }
+
     /**
      * Transform a list of split keys as a list of filters containing corresponding range.
      *
@@ -582,7 +621,7 @@ public class MongoDbIO {
      * @return A list of filters containing the ranges.
      */
     @VisibleForTesting
-    static List<String> splitKeysToFilters(List<Document> splitKeys) {
+    static List<String> splitKeysToFilters(List<Document> splitKeys, @NonNull BsonType idType) {
       ArrayList<String> filters = new ArrayList<>();
       String lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
@@ -591,11 +630,14 @@ public class MongoDbIO {
         if (i == 0) {
           // this is the first split in the list, the filter defines
           // the range from the beginning up to this split
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}", splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:%s}}",
+                                      getFilterString(idType, splitKey));
+
           filters.add(String.format("%s ]}", rangeFilter));
           // If there is only one split, also generate a range from the split to the end
           if (splitKeys.size() == 1) {
-            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
+            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
+                                        getFilterString(idType,splitKey));
             filters.add(String.format("%s ]}", rangeFilter));
           }
         } else if (i == splitKeys.size() - 1) {
@@ -604,17 +646,20 @@ public class MongoDbIO {
           // the current split to the end
           rangeFilter =
               String.format(
-                  "{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")," + "$lte:ObjectId(\"%s\")}}",
-                  lowestBound, splitKey);
+                  "{ $and: [ {\"_id\":{$gt:%s,$lte:%s}}",
+                  getFilterString(idType, Preconditions.checkStateNotNull(lowestBound)),
+                  getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
+                                      getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
         } else {
           // we are between two splits
           rangeFilter =
               String.format(
-                  "{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")," + "$lte:ObjectId(\"%s\")}}",
-                  lowestBound, splitKey);
+                  "{ $and: [ {\"_id\":{$gt:%s," + "$lte:%s}}",
+                  getFilterString(idType, Preconditions.checkStateNotNull(lowestBound)),
+                  getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
         }
 

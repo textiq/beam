@@ -22,59 +22,43 @@ import org.gradle.api.Project
 
 class Repositories {
 
-  static void register(Project project) {
+  private static def loadArtifactoryConfig() {
+    def config = [:];
 
-    project.repositories {
-      maven { url project.offlineRepositoryRoot }
+    def userHome = System.getProperty("user.home");
+    def configFile = java.nio.file.Paths.get(userHome, ".gradle", "artifactory.groovy").toFile();
+    if (configFile.exists()) {
+      config = new ConfigSlurper().parse(configFile.toURL());
+    }
 
-      // To run gradle in offline mode, one must first invoke
-      // 'updateOfflineRepository' to create an offline repo
-      // inside the root project directory. See the application
-      // of the offline repo plugin within build_rules.gradle
-      // for further details.
-      if (project.gradle.startParameter.isOffline()) {
-        return
+    for (key in ['url', 'username', 'password']) {
+      def fromEnv = System.env["ARTIFACTORY_${key.toUpperCase()}"];
+      if (fromEnv != null) {
+        config[key] = fromEnv;
       }
 
-      mavenCentral()
-      mavenLocal()
-
-      // Release staging repository
-      maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-
-      // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
-
-      // Apache release snapshots
-      maven { url "https://repository.apache.org/content/repositories/releases" }
-
-      // For Confluent Kafka dependencies
-      maven {
-        url "https://packages.confluent.io/maven/"
-        content { includeGroup "io.confluent" }
+      if (config[key] == null || config[key] == '' || config[key] == [:]) {
+        throw new Exception("No artifactory ${key} configured :(");
       }
     }
 
-    // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
-    // repository. This offline repository satisfies all Gradle build dependencies and Java
-    // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
-    // Note that parallel build must be disabled when executing 'updateOfflineRepository'
-    // by specifying '--no-parallel', see
-    // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
-    project.apply plugin: "io.pry.gradle.offline_dependencies"
-    project.offlineDependencies {
-      repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.spring.io/plugins-release" }
-        maven { url "https://packages.confluent.io/maven/" }
-        maven { url project.offlineRepositoryRoot }
+    return config;
+  }
+  static def artifactoryConfig = loadArtifactoryConfig();
+
+
+  static void register(Project project) {
+    project.repositories {
+      maven {
+        url = "https://${artifactoryConfig.url}/maven-anthology"
+        credentials {
+          username = artifactoryConfig.username
+          password = artifactoryConfig.password
+        }
+        allowInsecureProtocol = false
       }
-      includeSources = false
-      includeJavadocs = false
-      includeIvyXmls = false
+
     }
   }
+
 }
