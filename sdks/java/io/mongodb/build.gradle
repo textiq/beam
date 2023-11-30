@@ -28,7 +28,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: MongoDB"
 ext.summary = "IO to read and write on MongoDB."
 
 dependencies {
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":sdks:java:core")
   implementation library.java.joda_time
   implementation library.java.mongo_java_driver
   implementation library.java.slf4j_api
@@ -45,7 +45,18 @@ dependencies {
 
 publishing {
   repositories {
-    mavenLocal()
+    maven {
+        def artifactoryConfig = org.apache.beam.gradle.Repositories.artifactoryConfig
+
+        println artifactoryConfig
+
+        url = "https://${artifactoryConfig.url}/maven-local"
+        credentials {
+            username = artifactoryConfig.username
+            password = artifactoryConfig.password
+        }
+        allowInsecureProtocol = false
+    }
   }
 
   publications {
