@@ -1,0 +1,31 @@
+name: Main/PR
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - run: |
+          cd vendor/grpc-1_36_0 && ../../gradlew shadowJar
+
+      - if: github.event_name == 'push'
+        run: |
+          cd vendor/grpc-1_36_0 && ../../gradlew -PvendoredDependenciesOnly publish
