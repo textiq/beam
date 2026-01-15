@@ -25,11 +25,24 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
-  jcenter()
+  mavenCentral()
+  mavenLocal()
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {
-    url = uri("https://repo.spring.io/plugins-release/")
+    url = uri("https://repo.spring.io/plugins-snapshot/")
     content { includeGroup("io.spring.gradle") }
+  }
+  maven {
+    url = uri("https://${System.getenv("ARTIFACTORY_URL")}/maven-anthology")
+    credentials {
+        username = System.getenv("ARTIFACTORY_USERNAME")
+        password = System.getenv("ARTIFACTORY_PASSWORD")
+    }
+    isAllowInsecureProtocol = false
+  }
+  maven {
+    url = uri("https://jitpack.io")
+    content { includeGroup("com.github.davidmc24.gradle-avro-plugin") }
   }
 }
 
@@ -42,8 +55,8 @@ dependencies {
 
   runtime("net.ltgt.gradle:gradle-apt-plugin:0.21")                                                    // Enable a Java annotation processor
   runtime("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                          // Enable proto code generation
-  runtime("io.spring.gradle:propdeps-plugin:0.0.9.RELEASE")                                            // Enable provided and optional configurations
-  runtime("com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0")                                   // Enable Avro code generation
+  runtime("io.spring.gradle:propdeps-plugin:0.0.9.BUILD-SNAPSHOT")                                            // Enable provided and optional configurations
+  runtime("com.commercehub.gradle.plugin:gradle-avro-plugin:0.16.0")                                   // Enable Avro code generation
   runtime("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                       // Enable a code formatting plugin
   runtime("gradle.plugin.com.github.blindpirate:gogradle:0.11.4")                                      // Enable Go code compilation
   runtime("gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.22.0")                             // Enable building Docker containers
@@ -53,8 +66,8 @@ dependencies {
   runtime("net.linguica.gradle:maven-settings-plugin:0.5")
   runtime("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
   runtime("net.ltgt.gradle:gradle-errorprone-plugin:1.2.1")                                           // Enable errorprone Java static analysis
-  runtime("org.ajoberstar.grgit:grgit-gradle:4.0.2")                                                   // Enable website git publish to asf-site branch
-  runtime("com.avast.gradle:gradle-docker-compose-plugin:0.13.2")                                       // Enable docker compose tasks
+  runtime("org.ajoberstar.grgit:grgit-gradle:4.1.1")                                                   // Enable website git publish to asf-site branch
+  runtime("com.avast.gradle:gradle-docker-compose-plugin:0.16.2")                                       // Enable docker compose tasks
   runtime("ca.cutterslade.gradle:gradle-dependency-analyze:1.4.3")                                     // Enable dep analysis
   runtime("gradle.plugin.net.ossindex:ossindex-gradle-plugin:0.4.11")                                  // Enable dep vulnerability analysis
   runtime("org.checkerframework:checkerframework-gradle-plugin:0.5.16")                                 // Enable enhanced static checking plugin

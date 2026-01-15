@@ -426,7 +426,7 @@ public class MongoDbIO {
       try {
         Document stats = mongoDatabase.runCommand(stat);
         return stats.get("size", Number.class).longValue();
-      }  catch (MongoCommandException  e) {
+      } catch (MongoCommandException e) {
         // collection does not exist, size = 0
         return 0;
       }
@@ -478,7 +478,7 @@ public class MongoDbIO {
             try {
               Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
               splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
-            }catch (MongoCommandException e) {
+            } catch (MongoCommandException e) {
               // collection does not exist: no split keys to work with
               splitKeys = Collections.EMPTY_LIST;
             }
@@ -529,7 +529,7 @@ public class MongoDbIO {
     }
 
     private static String getFilterString(BsonType type, String value) {
-      switch(type) {
+      switch (type) {
         case STRING:
           return "\"" + value + "\"";
         case OBJECT_ID:
@@ -578,14 +578,14 @@ public class MongoDbIO {
         if (i == 0) {
           // this is the first split in the list, the filter defines
           // the range from the beginning up to this split
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:%s}}",
-                                      getFilterString(idType, splitKey));
+          rangeFilter =
+              String.format("{ $and: [ {\"_id\":{$lte:%s}}", getFilterString(idType, splitKey));
 
           filters.add(String.format("%s ]}", rangeFilter));
           // If there is only one split, also generate a range from the split to the end
           if (splitKeys.size() == 1) {
-            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
-                                        getFilterString(idType,splitKey));
+            rangeFilter =
+                String.format("{ $and: [ {\"_id\":{$gt:%s}}", getFilterString(idType, splitKey));
             filters.add(String.format("%s ]}", rangeFilter));
           }
         } else if (i == splitKeys.size() - 1) {
@@ -595,19 +595,17 @@ public class MongoDbIO {
           rangeFilter =
               String.format(
                   "{ $and: [ {\"_id\":{$gt:%s,$lte:%s}}",
-                  getFilterString(idType,lowestBound),
-                  getFilterString(idType, splitKey));
+                  getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:%s}}",
-                                      getFilterString(idType, splitKey));
+          rangeFilter =
+              String.format("{ $and: [ {\"_id\":{$gt:%s}}", getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
         } else {
           // we are between two splits
           rangeFilter =
               String.format(
                   "{ $and: [ {\"_id\":{$gt:%s," + "$lte:%s}}",
-                  getFilterString(idType, lowestBound),
-                  getFilterString(idType, splitKey));
+                  getFilterString(idType, lowestBound), getFilterString(idType, splitKey));
           filters.add(String.format("%s ]}", rangeFilter));
         }
 

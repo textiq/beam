@@ -26,7 +26,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Azure"
 ext.summary = "IO library to read and write Azure services from Beam."
 
-repositories { jcenter() }
+repositories { mavenCentral() }
 
 dependencies {
   compile library.java.commons_io
