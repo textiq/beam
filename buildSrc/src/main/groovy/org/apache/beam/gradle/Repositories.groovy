@@ -38,7 +38,6 @@ class Repositories {
 
       mavenCentral()
       mavenLocal()
-      jcenter()
 
       // For pentaho dependencies.
       maven {
@@ -61,16 +60,20 @@ class Repositories {
         content { includeGroup "io.confluent" }
       }
 
-      // For textiq
       maven {
-        url "http://maven-aws.textiq.net:8080/repository/internal"
-        content { allowInsecureProtocol = true }
+        name "artifactory"
+        url = "https://${System.env.ARTIFACTORY_URL}/maven-anthology"
+        credentials {
+          username = System.env.ARTIFACTORY_USERNAME
+          password = System.env.ARTIFACTORY_PASSWORD
+        }
+        allowInsecureProtocol = false
       }
     }
 
     // plugin to support repository authentication via ~/.m2/settings.xml
     // https://github.com/mark-vieira/gradle-maven-settings-plugin/
-    project.apply plugin: 'net.linguica.maven-settings'
+    // project.apply plugin: 'net.linguica.maven-settings'  // Disabled due to missing settings-security.xml
 
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
@@ -84,9 +87,8 @@ class Repositories {
       repositories {
         mavenLocal()
         mavenCentral()
-        jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://repo.spring.io/plugins-release" }
+        maven { url "https://repo.spring.io/plugins-snapshot" }
         maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
         maven { url "https://packages.confluent.io/maven/" }
         maven { url project.offlineRepositoryRoot }

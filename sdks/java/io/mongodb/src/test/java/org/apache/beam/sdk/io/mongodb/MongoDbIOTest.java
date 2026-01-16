@@ -125,7 +125,8 @@ public class MongoDbIOTest {
     // A single split will result in two filters
     ArrayList<Document> documents = new ArrayList<>();
     documents.add(new Document("_id", 56));
-    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, BsonType.OBJECT_ID);
+    List<String> filters =
+        MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, BsonType.OBJECT_ID);
     assertEquals(2, filters.size());
     assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
     assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\")}} ]}", filters.get(1));
@@ -268,30 +269,34 @@ public class MongoDbIOTest {
   @Test
   public void testReadWithProjection() {
     PCollection<Document> output =
-          pipeline.apply(
-                MongoDbIO.read()
-                      .withUri("mongodb://localhost:" + port)
-                      .withDatabase(DATABASE)
-                      .withCollection(COLLECTION)
-                      .withQueryFn(FindQuery.create().withProjection(Lists.newArrayList("scientist"))));
+        pipeline.apply(
+            MongoDbIO.read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withCollection(COLLECTION)
+                .withQueryFn(FindQuery.create().withProjection(Lists.newArrayList("scientist"))));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
 
     PAssert.thatSingleton(
-          output
-                .apply("Filter docs with country field present",
-                       Filter.by((SerializableFunction<Document, Boolean>)
-                                       input -> input.getString("country") != null))
+            output
+                .apply(
+                    "Filter docs with country field present",
+                    Filter.by(
+                        (SerializableFunction<Document, Boolean>)
+                            input -> input.getString("country") != null))
                 .apply("CountWithCountry", Count.globally()))
-          .isEqualTo(0L);
+        .isEqualTo(0L);
 
     PAssert.thatSingleton(
-          output
-                .apply("Filter docs with scientist field present",
-                       Filter.by((SerializableFunction<Document, Boolean>)
-                                       input -> input.getString("scientist") != null))
+            output
+                .apply(
+                    "Filter docs with scientist field present",
+                    Filter.by(
+                        (SerializableFunction<Document, Boolean>)
+                            input -> input.getString("scientist") != null))
                 .apply("CountWithScientist", Count.globally()))
-          .isEqualTo(1000L);
+        .isEqualTo(1000L);
     pipeline.run();
   }
 

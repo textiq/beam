@@ -16,9 +16,21 @@
  * limitations under the License.
  */
 
+plugins { id 'org.apache.beam.vendor-java' }
+
 import org.apache.beam.gradle.GrpcVendoring_1_36_0
 
-plugins { id 'org.apache.beam.vendor-java' }
+repositories {
+    mavenLocal()
+    maven {
+        url = uri("https://${System.env.ARTIFACTORY_URL}/maven-anthology")
+        credentials {
+            username = System.env.ARTIFACTORY_USERNAME
+            password = System.env.ARTIFACTORY_PASSWORD
+        }
+        allowInsecureProtocol = false
+    }
+}
 
 description = "Apache Beam :: Vendored Dependencies :: gRPC :: 1.36.0"
 

@@ -187,28 +187,41 @@ artifactId=${project.name}
               name "testPublicationLocal"
               url "file://${project.rootProject.projectDir}/testPublication/"
             }
-            maven {
-              url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-                  ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-                  : 'https://repository.apache.org/content/repositories/snapshots')
-              name(project.properties['distMgmtServerId'] ?: isRelease(project)
-                  ? 'apache.releases.https' : 'apache.snapshots.https')
-              // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
-              // has configured with the Apache release and snapshot staging credentials.
-              // <settings>
-              //   <servers>
-              //     <server>
-              //       <id>apache.releases.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //     <server>
-              //       <id>apache.snapshots.https</id>
-              //       <username>USER_TOKEN</username>
-              //       <password>PASS_TOKEN</password>
-              //     </server>
-              //   </servers>
-              // </settings>
+            // Use Artifactory if configured, otherwise use Apache repositories
+            if (System.env.ARTIFACTORY_URL) {
+              maven {
+                name "artifactory"
+                url = "https://${System.env.ARTIFACTORY_URL}/maven-anthology"
+                credentials {
+                  username = System.env.ARTIFACTORY_USERNAME
+                  password = System.env.ARTIFACTORY_PASSWORD
+                }
+                allowInsecureProtocol = false
+              }
+            } else {
+              maven {
+                url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+                    ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                    : 'https://repository.apache.org/content/repositories/snapshots')
+                name(project.properties['distMgmtServerId'] ?: isRelease(project)
+                    ? 'apache.releases.https' : 'apache.snapshots.https')
+                // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
+                // has configured with the Apache release and snapshot staging credentials.
+                // <settings>
+                //   <servers>
+                //     <server>
+                //       <id>apache.releases.https</id>
+                //       <username>USER_TOKEN</username>
+                //       <password>PASS_TOKEN</password>
+                //     </server>
+                //     <server>
+                //       <id>apache.snapshots.https</id>
+                //       <username>USER_TOKEN</username>
+                //       <password>PASS_TOKEN</password>
+                //     </server>
+                //   </servers>
+                // </settings>
+              }
             }
           }
 

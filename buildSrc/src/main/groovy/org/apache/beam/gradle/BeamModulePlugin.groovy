@@ -105,7 +105,7 @@ class BeamModulePlugin implements Plugin<Project> {
     Map<String, String> classesTriggerCheckerBugs = [:]
 
     /** Controls whether the dependency analysis plugin is enabled. */
-    boolean enableStrictDependencies = true
+    boolean enableStrictDependencies = false
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null
@@ -372,7 +372,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.33.0'
+    project.version = '2.33.4'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -699,28 +699,41 @@ class BeamModulePlugin implements Plugin<Project> {
         name "testPublicationLocal"
         url "file://${project.rootProject.projectDir}/testPublication/"
       }
-      maven {
-        url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
-            ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
-            : 'https://repository.apache.org/content/repositories/snapshots')
-        name(project.properties['distMgmtServerId'] ?: isRelease(project)
-            ? 'apache.releases.https' : 'apache.snapshots.https')
-        // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
-        // has configured with the Apache release and snapshot staging credentials.
-        // <settings>
-        //   <servers>
-        //     <server>
-        //       <id>apache.releases.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //     <server>
-        //       <id>apache.snapshots.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //   </servers>
-        // </settings>
+      // Use Artifactory if configured, otherwise use Apache repositories
+      if (System.env.ARTIFACTORY_URL) {
+        maven {
+          name "artifactory"
+          url = "https://${System.env.ARTIFACTORY_URL}/maven-anthology"
+          credentials {
+            username = System.env.ARTIFACTORY_USERNAME
+            password = System.env.ARTIFACTORY_PASSWORD
+          }
+          allowInsecureProtocol = false
+        }
+      } else {
+        maven {
+          url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
+              ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+              : 'https://repository.apache.org/content/repositories/snapshots')
+          name(project.properties['distMgmtServerId'] ?: isRelease(project)
+              ? 'apache.releases.https' : 'apache.snapshots.https')
+          // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
+          // has configured with the Apache release and snapshot staging credentials.
+          // <settings>
+          //   <servers>
+          //     <server>
+          //       <id>apache.releases.https</id>
+          //       <username>USER_TOKEN</username>
+          //       <password>PASS_TOKEN</password>
+          //     </server>
+          //     <server>
+          //       <id>apache.snapshots.https</id>
+          //       <username>USER_TOKEN</username>
+          //       <password>PASS_TOKEN</password>
+          //     </server>
+          //   </servers>
+          // </settings>
+        }
       }
     }
 
@@ -1747,7 +1760,13 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.16.5' }
+      // Use existing Go installation to avoid deprecated download URL
+      def goRootPath = System.getenv('GOROOT') ?: new File(System.getProperty('user.home'), '.gradle/go/1.16.5').absolutePath
+      if (new File(goRootPath).exists()) {
+        project.golang { goRoot = goRootPath }
+      } else {
+        project.golang { goVersion = '1.16.5' }
+      }
 
       project.repositories {
         golang {

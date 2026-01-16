@@ -72,7 +72,7 @@ task shadowJarTest(type: Test, dependsOn: ":sdks:java:extensions:sql:jdbc:shadow
   outputs.upToDateWhen { false }
 
   systemProperty "driver.jar", configurations.shadowTestRuntimeClasspath[1]
-
+  
   include '**/JdbcJarTest.class'
   classpath = configurations.integrationTest
   useJUnit { }

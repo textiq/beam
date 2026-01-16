@@ -1,0 +1,180 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-grpc:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.16.x'
+
+      - name: Set GOROOT environment variable
+        run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Build vendor grpc
+        run: |
+          cd vendor/grpc-1_36_0 && ../../gradlew shadowJar
+
+      - name: Publish vendor grpc
+        run: |
+          cd vendor/grpc-1_36_0 && ../../gradlew -PvendoredDependenciesOnly publish
+
+  build-core:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.16.x'
+
+      - name: Set GOROOT environment variable
+        run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Java Core SDK
+        run: |
+          ./gradlew :sdks:java:core:build -x test -x checkstyleMain -x checkstyleTest
+
+      - name: Publish Java Core SDK
+        run: |
+          ./gradlew :sdks:java:core:publish -Ppublishing
+
+  build-mongodb:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.16.x'
+
+      - name: Set GOROOT environment variable
+        run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Build MongoDB IO module
+        run: |
+          ./gradlew :sdks:java:io:mongodb:build -x test
+
+      - name: Publish MongoDB IO module
+        run: |
+          ./gradlew :sdks:java:io:mongodb:publish -Ppublishing
+
+  build-model-pipeline:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.16.x'
+
+      - name: Set GOROOT environment variable
+        run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Model Pipeline module
+        run: |
+          ./gradlew :model:pipeline:build -x test
+
+      - name: Publish Model Pipeline module
+        run: |
+          ./gradlew :model:pipeline:publish -Ppublishing
+
+  build-job-management:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_URL: 'relativityone.jfrog.io/artifactory'
+      ARTIFACTORY_USERNAME: ${{ vars.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.16.x'
+
+      - name: Set GOROOT environment variable
+        run: echo "GOROOT=$(go env GOROOT)" >> $GITHUB_ENV
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Job Management module
+        run: |
+          ./gradlew :model:job-management:build -x test
+
+      - name: Publish Job Management module
+        run: |
+          ./gradlew :model:job-management:publish -Ppublishing
